@@ -1,0 +1,28 @@
+CREATE TABLE vehicles (
+    id VARCHAR(36) PRIMARY KEY,
+    registration_number VARCHAR(20) NOT NULL UNIQUE,
+    brand VARCHAR(50) NOT NULL,
+    model VARCHAR(50) NOT NULL,
+    category VARCHAR(20) NOT NULL,
+    fuel_type VARCHAR(20) NOT NULL,
+    transmission VARCHAR(20) NOT NULL,
+    manufacture_year INT NOT NULL,
+    location VARCHAR(100) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    price_plan_id VARCHAR(36),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    version BIGINT DEFAULT 0
+);
+
+CREATE TABLE vehicle_reservations (
+    id VARCHAR(36) PRIMARY KEY,
+    vehicle_id VARCHAR(36) NOT NULL,
+    booking_id VARCHAR(36) NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+);
