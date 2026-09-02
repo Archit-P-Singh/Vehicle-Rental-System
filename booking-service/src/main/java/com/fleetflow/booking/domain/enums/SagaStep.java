@@ -1,0 +1,13 @@
+package com.fleetflow.booking.domain.enums;
+
+public enum SagaStep {
+    CREATE_BOOKING,
+    RESERVE_VEHICLE,
+    CALCULATE_PRICE,
+    PROCESS_PAYMENT,
+    CONFIRM_BOOKING,
+    SEND_NOTIFICATION,
+    COMPENSATE_PAYMENT,
+    COMPENSATE_VEHICLE,
+    COMPENSATE_BOOKING
+}

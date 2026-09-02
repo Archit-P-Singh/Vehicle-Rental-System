@@ -1,0 +1,15 @@
+package com.fleetflow.booking.domain.enums;
+
+public enum SagaStatus {
+    STARTED,
+    VEHICLE_RESERVATION_PENDING,
+    VEHICLE_RESERVED,
+    PRICING_PENDING,
+    PRICE_CALCULATED,
+    PAYMENT_PENDING,
+    PAYMENT_COMPLETED,
+    COMPLETED,
+    COMPENSATING,
+    COMPENSATED,
+    FAILED
+}
