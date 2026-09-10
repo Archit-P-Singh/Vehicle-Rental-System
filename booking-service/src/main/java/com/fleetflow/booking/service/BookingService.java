@@ -25,6 +25,7 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final BookingSagaRepository sagaRepository;
+    private final BookingSagaOrchestrator orchestrator;
 
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest request) {
@@ -60,7 +61,7 @@ public class BookingService {
 
         log.info("Booking created with ID: {}. Saga initialized.", savedBooking.getId());
         
-        // TODO: In Phase 8, we will publish a Kafka event here to trigger the next step (Reserve Vehicle)
+        orchestrator.startSaga(savedBooking, saga);
 
         return mapToResponse(savedBooking);
     }
