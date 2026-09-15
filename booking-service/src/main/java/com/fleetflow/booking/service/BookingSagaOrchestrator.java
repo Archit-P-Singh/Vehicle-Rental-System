@@ -1,18 +1,20 @@
 package com.fleetflow.booking.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fleetflow.booking.domain.entity.Booking;
 import com.fleetflow.booking.domain.entity.BookingSaga;
+import com.fleetflow.booking.domain.entity.OutboxEvent;
 import com.fleetflow.booking.domain.enums.BookingStatus;
 import com.fleetflow.booking.domain.enums.SagaStatus;
 import com.fleetflow.booking.domain.enums.SagaStep;
 import com.fleetflow.booking.repository.BookingRepository;
 import com.fleetflow.booking.repository.BookingSagaRepository;
+import com.fleetflow.booking.repository.OutboxEventRepository;
 import com.fleetflow.common.events.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +25,7 @@ public class BookingSagaOrchestrator {
 
     private final BookingRepository bookingRepository;
     private final BookingSagaRepository sagaRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
 
     // Topics
@@ -53,7 +55,7 @@ public class BookingSagaOrchestrator {
                 booking.getEndTime()
         );
         
-        kafkaTemplate.send(VEHICLE_COMMANDS, booking.getId(), event);
+        publishEventToOutbox(VEHICLE_COMMANDS, booking.getId(), event);
     }
 
     @KafkaListener(topics = "vehicle-events", groupId = "booking-orchestrator-group")
@@ -91,7 +93,7 @@ public class BookingSagaOrchestrator {
                 booking.getStartTime(),
                 booking.getEndTime()
         );
-        kafkaTemplate.send(PRICING_COMMANDS, booking.getId(), cmd);
+        publishEventToOutbox(PRICING_COMMANDS, booking.getId(), cmd);
     }
 
     private void handleVehicleReservationFailed(VehicleReservationFailedEvent event) {
@@ -105,7 +107,7 @@ public class BookingSagaOrchestrator {
         booking.setStatus(BookingStatus.FAILED);
         bookingRepository.save(booking);
         
-        kafkaTemplate.send(BOOKING_EVENTS, booking.getId(), new BookingCancelledEvent(booking.getId(), event.getReason()));
+        publishEventToOutbox(BOOKING_EVENTS, booking.getId(), new BookingCancelledEvent(booking.getId(), event.getReason()));
     }
 
     @KafkaListener(topics = "pricing-events", groupId = "booking-orchestrator-group")
@@ -145,7 +147,7 @@ public class BookingSagaOrchestrator {
                 event.getTotalAmount(),
                 event.getCurrency()
         );
-        kafkaTemplate.send(PAYMENT_COMMANDS, booking.getId(), cmd);
+        publishEventToOutbox(PAYMENT_COMMANDS, booking.getId(), cmd);
     }
 
     private void handlePricingFailed(PricingFailedEvent event) {
@@ -183,7 +185,7 @@ public class BookingSagaOrchestrator {
         booking.setStatus(BookingStatus.CONFIRMED);
         bookingRepository.save(booking);
 
-        kafkaTemplate.send(BOOKING_EVENTS, booking.getId(), new BookingConfirmedEvent(booking.getId()));
+        publishEventToOutbox(BOOKING_EVENTS, booking.getId(), new BookingConfirmedEvent(booking.getId()));
     }
 
     private void handlePaymentFailed(PaymentFailedEvent event) {
@@ -204,7 +206,23 @@ public class BookingSagaOrchestrator {
         bookingRepository.save(booking);
 
         CompensateVehicleEvent cmd = new CompensateVehicleEvent(bookingId);
-        kafkaTemplate.send(VEHICLE_COMMANDS, bookingId, cmd);
+        publishEventToOutbox(VEHICLE_COMMANDS, bookingId, cmd);
+    }
+
+    private void publishEventToOutbox(String topic, String aggregateId, BaseEvent event) {
+        try {
+            OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .aggregateId(aggregateId)
+                    .aggregateType(event.getEventType())
+                    .topic(topic)
+                    .payload(objectMapper.writeValueAsString(event))
+                    .status("PENDING")
+                    .build();
+            outboxEventRepository.save(outboxEvent);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize event for outbox", e);
+            throw new RuntimeException("Failed to serialize event", e);
+        }
     }
 
     private BookingSaga getSaga(String bookingId) {
