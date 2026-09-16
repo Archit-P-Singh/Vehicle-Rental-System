@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fleetflow.booking.domain.entity.Booking;
 import com.fleetflow.booking.domain.entity.BookingSaga;
 import com.fleetflow.booking.domain.entity.OutboxEvent;
+import com.fleetflow.booking.domain.entity.ProcessedEvent;
 import com.fleetflow.booking.domain.enums.BookingStatus;
 import com.fleetflow.booking.domain.enums.SagaStatus;
 import com.fleetflow.booking.domain.enums.SagaStep;
 import com.fleetflow.booking.repository.BookingRepository;
 import com.fleetflow.booking.repository.BookingSagaRepository;
 import com.fleetflow.booking.repository.OutboxEventRepository;
+import com.fleetflow.booking.repository.ProcessedEventRepository;
 import com.fleetflow.common.events.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class BookingSagaOrchestrator {
     private final BookingRepository bookingRepository;
     private final BookingSagaRepository sagaRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final ProcessedEventRepository processedEventRepository;
     private final ObjectMapper objectMapper;
 
     // Topics
@@ -63,6 +66,8 @@ public class BookingSagaOrchestrator {
     public void handleVehicleEvents(String message) {
         try {
             BaseEvent event = objectMapper.readValue(message, BaseEvent.class);
+            if (isDuplicate(event)) return;
+
             if ("VehicleReservedEvent".equals(event.getEventType())) {
                 VehicleReservedEvent vre = objectMapper.readValue(message, VehicleReservedEvent.class);
                 handleVehicleReserved(vre);
@@ -70,6 +75,8 @@ public class BookingSagaOrchestrator {
                 VehicleReservationFailedEvent vrfe = objectMapper.readValue(message, VehicleReservationFailedEvent.class);
                 handleVehicleReservationFailed(vrfe);
             }
+            
+            markAsProcessed(event);
         } catch (Exception e) {
             log.error("Error processing vehicle event", e);
         }
@@ -115,6 +122,8 @@ public class BookingSagaOrchestrator {
     public void handlePricingEvents(String message) {
         try {
             BaseEvent event = objectMapper.readValue(message, BaseEvent.class);
+            if (isDuplicate(event)) return;
+
             if ("PriceCalculatedEvent".equals(event.getEventType())) {
                 PriceCalculatedEvent pce = objectMapper.readValue(message, PriceCalculatedEvent.class);
                 handlePriceCalculated(pce);
@@ -122,6 +131,8 @@ public class BookingSagaOrchestrator {
                 PricingFailedEvent pfe = objectMapper.readValue(message, PricingFailedEvent.class);
                 handlePricingFailed(pfe);
             }
+            
+            markAsProcessed(event);
         } catch (Exception e) {
             log.error("Error processing pricing event", e);
         }
@@ -161,6 +172,8 @@ public class BookingSagaOrchestrator {
     public void handlePaymentEvents(String message) {
         try {
             BaseEvent event = objectMapper.readValue(message, BaseEvent.class);
+            if (isDuplicate(event)) return;
+
             if ("PaymentProcessedEvent".equals(event.getEventType())) {
                 PaymentProcessedEvent ppe = objectMapper.readValue(message, PaymentProcessedEvent.class);
                 handlePaymentProcessed(ppe);
@@ -168,6 +181,8 @@ public class BookingSagaOrchestrator {
                 PaymentFailedEvent pfe = objectMapper.readValue(message, PaymentFailedEvent.class);
                 handlePaymentFailed(pfe);
             }
+            
+            markAsProcessed(event);
         } catch (Exception e) {
             log.error("Error processing payment event", e);
         }
@@ -223,6 +238,23 @@ public class BookingSagaOrchestrator {
             log.error("Failed to serialize event for outbox", e);
             throw new RuntimeException("Failed to serialize event", e);
         }
+    }
+    
+    private boolean isDuplicate(BaseEvent event) {
+        if (processedEventRepository.existsById(event.getEventId())) {
+            log.warn("Event {} of type {} already processed, skipping.", event.getEventId(), event.getEventType());
+            return true;
+        }
+        return false;
+    }
+    
+    private void markAsProcessed(BaseEvent event) {
+        processedEventRepository.save(
+            ProcessedEvent.builder()
+                .eventId(event.getEventId())
+                .eventType(event.getEventType())
+                .build()
+        );
     }
 
     private BookingSaga getSaga(String bookingId) {
