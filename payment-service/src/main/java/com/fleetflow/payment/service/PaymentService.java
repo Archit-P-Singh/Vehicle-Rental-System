@@ -23,10 +23,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final RefundRepository refundRepository;
-    private final Random random = new Random();
-
-    @Value("${payment.simulation.failure-rate:0.10}")
-    private double failureRate;
+    private final ExternalPaymentGatewayClient gatewayClient;
 
     @Transactional
     public PaymentResponse processPayment(PaymentRequest request) {
@@ -36,13 +33,15 @@ public class PaymentService {
             return mapToResponse(existingPayment.get());
         }
 
-        // Simulate payment failure randomly based on the configured rate
-        PaymentStatus status = (random.nextDouble() < failureRate) 
-                ? PaymentStatus.FAILED 
-                : PaymentStatus.SUCCESS;
+        String ref = "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        
+        // Call the external gateway, protected by Resilience4j
+        boolean success = gatewayClient.chargeCard(ref, request.getAmount().doubleValue());
+        
+        PaymentStatus status = success ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
 
         Payment payment = Payment.builder()
-                .paymentReference("TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .paymentReference(ref)
                 .bookingId(request.getBookingId())
                 .customerId(request.getCustomerId())
                 .amount(request.getAmount())

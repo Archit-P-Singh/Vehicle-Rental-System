@@ -33,3 +33,20 @@ payment:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.fleetflow.common.events"
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      externalPaymentGateway:
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 3
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+  retry:
+    instances:
+      externalPaymentGateway:
+        maxAttempts: 3
+        waitDuration: 2s
