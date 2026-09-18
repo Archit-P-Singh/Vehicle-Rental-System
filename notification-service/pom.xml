@@ -49,5 +49,10 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-mysql</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.fleetflow</groupId>
+            <artifactId>common-dto</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>
