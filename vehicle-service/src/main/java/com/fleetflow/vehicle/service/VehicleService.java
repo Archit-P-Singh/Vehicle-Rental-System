@@ -10,6 +10,8 @@ import com.fleetflow.vehicle.dto.VehicleResponse;
 import com.fleetflow.vehicle.repository.VehicleRepository;
 import com.fleetflow.vehicle.repository.VehicleReservationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class VehicleService {
     private final VehicleRepository vehicleRepository;
     private final VehicleReservationRepository reservationRepository;
 
+    @CacheEvict(value = "availableVehicles", allEntries = true)
     public VehicleResponse addVehicle(VehicleRequest request) {
         Vehicle vehicle = Vehicle.builder()
                 .registrationNumber(request.getRegistrationNumber())
@@ -41,6 +44,7 @@ public class VehicleService {
         return mapToResponse(saved);
     }
 
+    @Cacheable("availableVehicles")
     public List<VehicleResponse> getAvailableVehicles() {
         return vehicleRepository.findByStatus(VehicleStatus.AVAILABLE)
                 .stream()
@@ -49,6 +53,7 @@ public class VehicleService {
     }
 
     @Transactional
+    @CacheEvict(value = "availableVehicles", allEntries = true)
     public void reserveVehicle(ReservationRequest request) {
         if (request.getStartTime().isAfter(request.getEndTime())) {
             throw new IllegalArgumentException("Start time must be before end time");
@@ -88,6 +93,7 @@ public class VehicleService {
     }
 
     @Transactional
+    @CacheEvict(value = "availableVehicles", allEntries = true)
     public void releaseVehicle(String bookingId) {
         List<VehicleReservation> reservations = reservationRepository.findByBookingId(bookingId);
         if (reservations.isEmpty()) {
