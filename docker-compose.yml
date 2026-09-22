@@ -1,24 +1,24 @@
 version: '3.8'
 
 services:
+  # ---------------- Infrastructure ----------------
   mysql:
     image: mysql:8.0
     container_name: fleetflow-mysql
     ports:
       - "3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=fleetflow_default
-    volumes:
-      - mysql-data:/var/lib/mysql
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: fleetflow_auth
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
+    image: confluentinc/cp-zookeeper:7.4.0
     container_name: fleetflow-zookeeper
     ports:
       - "2181:2181"
@@ -27,24 +27,20 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.4.0
     container_name: fleetflow-kafka
     depends_on:
       - zookeeper
     ports:
       - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7.0-alpine
@@ -52,5 +48,150 @@ services:
     ports:
       - "6379:6379"
 
-volumes:
-  mysql-data:
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: fleetflow-zipkin
+    ports:
+      - "9411:9411"
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: fleetflow-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  # ---------------- Microservices ----------------
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      - zipkin
+
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql:
+        condition: service_healthy
+      zipkin:
+        condition: service_started
+
+  vehicle-service:
+    build:
+      context: ./vehicle-service
+    container_name: vehicle-service
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - REDIS_HOST=redis
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      zipkin:
+        condition: service_started
+
+  booking-service:
+    build:
+      context: ./booking-service
+    container_name: booking-service
+    ports:
+      - "8083:8083"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      zipkin:
+        condition: service_started
+
+  pricing-service:
+    build:
+      context: ./pricing-service
+    container_name: pricing-service
+    ports:
+      - "8084:8084"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      zipkin:
+        condition: service_started
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: payment-service
+    ports:
+      - "8086:8086"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      zipkin:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: notification-service
+    ports:
+      - "8085:8085"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      zipkin:
+        condition: service_started

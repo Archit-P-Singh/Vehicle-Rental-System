@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api-gateway:8080']
+
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auth-service:8081']
+
+  - job_name: 'vehicle-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['vehicle-service:8082']
+
+  - job_name: 'booking-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['booking-service:8083']
+
+  - job_name: 'pricing-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['pricing-service:8084']
+
+  - job_name: 'payment-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['payment-service:8086']
+
+  - job_name: 'notification-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['notification-service:8085']
