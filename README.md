@@ -1,52 +1,57 @@
-# FleetFlow — Event-Driven Vehicle Rental & Fleet Management Platform
+# FleetFlow: Distributed Car Rental Platform 🚗☁️
 
-Event-driven vehicle rental and fleet management platform built with Java, Spring Boot, Kafka, MySQL and the Saga Pattern.
+FleetFlow is a modern, cloud-native, microservices-based car rental platform. Built as a final year college project to demonstrate enterprise-grade software architecture, it features a robust event-driven design, distributed data patterns, API gateways, and complete observability.
 
-## Architecture
+## 🌟 Key Features
+- **Event-Driven Architecture**: Fully decoupled microservices communicating asynchronously via Apache Kafka.
+- **Saga Pattern**: Distributed transaction management using Orchestration to ensure data consistency across multiple databases.
+- **Transactional Outbox & Idempotency**: Bulletproof guarantees against dual-write problems and exactly-once event processing guarantees.
+- **Circuit Breakers & Retries**: `Resilience4j` implementation for graceful handling of external payment gateway failures.
+- **Caching**: Blazing fast reads for vehicle availability using Redis.
+- **Security**: Centralized JWT validation at the Spring Cloud Gateway.
+- **Observability**: Distributed tracing and metrics via Micrometer, Zipkin, and Prometheus.
 
-FleetFlow follows a microservice architecture built on Java 21 and Spring Boot 3.x. The platform uses a **Database-per-service** pattern where each service owns its data and communicates with other services through REST APIs and Kafka events.
+## 🏗️ Architecture
 
-### Microservices
+The system is decomposed into 7 distinct microservices:
 
-* **API Gateway**: Entry point for all external traffic. Handles routing, rate limiting, and initial authentication checks.
-* **Auth Service**: Manages user registration, authentication (JWT), roles, and driving license information.
-* **Vehicle Service**: Manages the vehicle fleet, vehicle status, and vehicle reservations.
-* **Booking Service**: The core business service. Manages the booking lifecycle and orchestrates the distributed Saga transaction.
-* **Pricing Service**: Calculates rental prices based on vehicle, duration, and dynamically applied rules.
-* **Payment Service**: Processes (simulated) payments and handles refunds.
-* **Notification Service**: Listens for domain events and sends notifications to users.
+1. **API Gateway (`api-gateway`)**: Spring Cloud Gateway. Handles routing, global JWT validation, rate limiting, and injects Correlation IDs for tracing.
+2. **Auth Service (`auth-service`)**: User registration, login, and JWT token issuance.
+3. **Vehicle Service (`vehicle-service`)**: Manages the fleet catalog, vehicle availability, and Redis caching.
+4. **Booking Service (`booking-service`)**: The core orchestrator. Manages the booking lifecycle and drives the Saga workflow. Implements the Transactional Outbox pattern.
+5. **Pricing Service (`pricing-service`)**: Calculates quotes, discounts, and taxes based on real-time plans.
+6. **Payment Service (`payment-service`)**: Integrates with mock external gateways. Implements `Resilience4j` circuit breakers.
+7. **Notification Service (`notification-service`)**: Listens to Kafka topics and sends asynchronous emails/SMS for booking confirmations.
 
-### Distributed Transactions (Saga Pattern)
+## 🚀 Getting Started
 
-The creation of a booking involves multiple services. To ensure data consistency across the distributed system without relying on two-phase commits (2PC), FleetFlow uses **Saga Orchestration**.
+### Prerequisites
+- Docker & Docker Compose
+- Java 21 & Maven 3.9+ (Optional, if building locally outside Docker)
 
-The `Booking Service` acts as the orchestrator. The workflow is:
-1. Create Booking (Pending)
-2. Reserve Vehicle (Vehicle Service)
-3. Calculate Price (Pricing Service)
-4. Process Payment (Payment Service)
-5. Confirm Booking
-6. Send Notification
+### Run with Docker Compose
+The entire infrastructure (MySQL, Kafka, Zookeeper, Redis, Zipkin, Prometheus) and all 7 microservices can be spun up with a single command:
 
-If any step fails, the orchestrator triggers compensating transactions (e.g., Refund Payment, Release Vehicle) to revert the system to a consistent state.
+```bash
+docker compose up --build -d
+```
 
-### Resilience and Event Delivery
+### Accessing the System
+- **API Gateway**: `http://localhost:8080`
+- **Zipkin (Tracing)**: `http://localhost:9411`
+- **Prometheus (Metrics)**: `http://localhost:9090`
+- **Kafka UI** (if configured): `http://localhost:8080`
 
-* **Transactional Outbox Pattern**: Ensures domain events are reliably published to Kafka even if the message broker is temporarily unavailable.
-* **Idempotent Consumers**: Protects against duplicate event delivery.
-* **Optimistic Locking**: Prevents concurrent reservation of the same vehicle.
-* **Resilience4j**: Handles retries, timeouts, and circuit breaking for synchronous REST calls.
+## 🛠️ Technology Stack
+- **Backend Framework**: Spring Boot 3 (Java 21)
+- **Databases**: MySQL 8.0, Redis 7.0
+- **Message Broker**: Apache Kafka
+- **Observability**: Micrometer, Zipkin, Prometheus, Spring Boot Actuator
+- **Security**: Spring Security, JWT (jjwt)
+- **Resilience**: Resilience4j (Circuit Breaker & Retry)
+- **Containerization**: Docker, Docker Compose
 
-## Technology Stack
+## 🎓 About This Project
+This project was built to learn and implement complex distributed systems patterns inspired by real-world enterprise architectures. It tackles hard problems like distributed transactions, network unreliability, and database caching.
 
-* Java 21
-* Spring Boot 3.x
-* Spring Cloud Gateway
-* Spring Security (JWT)
-* Spring Data JPA / Hibernate
-* MySQL 8
-* Apache Kafka
-* Redis
-* Docker / Docker Compose
-* JUnit 5 / Mockito / Testcontainers
-* Prometheus / Grafana
+*Developed as a Final Year Project.*
