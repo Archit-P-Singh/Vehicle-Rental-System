@@ -92,8 +92,7 @@ docker compose up --build -d
 - **Security**: Spring Security, JSON Web Tokens (jjwt)
 - **Resilience**: Resilience4j
 - **Observability**: Micrometer, Zipkin, Prometheus, Spring Boot Actuator
-- **Testing**: JUnit 5, Mockito
-- **CI/CD**: GitHub Actions
+- **Testing**: JUnit 5
 - **Containerization**: Docker, Docker Compose
 
 ## Educational Context
