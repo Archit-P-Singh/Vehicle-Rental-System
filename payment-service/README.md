@@ -1,4 +1,4 @@
-# Payment Service 💳
+# Payment Service
 
 The Payment Service handles financial transactions and mock integrations with external third-party gateways (e.g., Stripe, PayPal).
 

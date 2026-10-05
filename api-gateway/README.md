@@ -1,4 +1,4 @@
-# API Gateway Service 🚦
+# API Gateway Service
 
 The API Gateway is the single point of entry for the FleetFlow platform, built with Spring Cloud Gateway.
 

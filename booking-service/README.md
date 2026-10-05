@@ -1,4 +1,4 @@
-# Booking Service 📅
+# Booking Service
 
 The Booking Service is the core orchestrator of the entire platform. It handles the complex lifecycle of a car rental booking.
 

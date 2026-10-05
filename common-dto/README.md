@@ -1,4 +1,4 @@
-# Common DTOs 📦
+# Common DTOs
 
 This library module contains shared Data Transfer Objects (DTOs) and Event Schemas.
 

@@ -1,4 +1,4 @@
-# Notification Service 📬
+# Notification Service
 
 The Notification Service acts as an asynchronous messaging hub to keep users informed without blocking core business flows.
 

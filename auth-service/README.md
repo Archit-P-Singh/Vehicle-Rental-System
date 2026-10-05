@@ -1,4 +1,4 @@
-# Auth Service 🔐
+# Auth Service
 
 The Auth Service handles Identity and Access Management for the platform.
 

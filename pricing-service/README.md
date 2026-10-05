@@ -1,4 +1,4 @@
-# Pricing Service 💰
+# Pricing Service
 
 The Pricing Service is a stateless engine responsible for dynamic quote calculation.
 
